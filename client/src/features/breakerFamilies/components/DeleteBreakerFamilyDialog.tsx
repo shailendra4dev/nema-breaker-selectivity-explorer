@@ -6,45 +6,46 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-
 import type { BreakerFamily } from '../types/breakerFamily.types';
 
-interface DeleteBreakerFamilyDialogProps {
+type DeleteBreakerFamilyDialogProps = {
   open: boolean;
   breakerFamily: BreakerFamily | null;
+  isDeleting?: boolean;
   onClose: () => void;
-  onConfirm: () => void;
-}
+  onConfirm: () => Promise<void>;
+};
 
 const DeleteBreakerFamilyDialog = ({
   open,
   breakerFamily,
+  isDeleting = false,
   onClose,
   onConfirm,
 }: DeleteBreakerFamilyDialogProps) => {
   return (
     <Dialog
       open={open}
-      onClose={onClose}
-      maxWidth="xs"
-      fullWidth
+      onClose={isDeleting ? undefined : onClose}
     >
       <DialogTitle>
-        Delete breaker family?
+        Delete Breaker Family
       </DialogTitle>
 
       <DialogContent>
         <DialogContentText>
-          {breakerFamily
-            ? `Are you sure you want to delete "${breakerFamily.name}"? This action cannot be undone.`
-            : 'Are you sure you want to delete this breaker family?'}
+          Are you sure you want to delete{' '}
+          <strong>
+            {breakerFamily?.name}
+          </strong>
+          ? This action cannot be undone.
         </DialogContentText>
       </DialogContent>
 
       <DialogActions>
         <Button
-          color="inherit"
           onClick={onClose}
+          disabled={isDeleting}
         >
           Cancel
         </Button>
@@ -52,9 +53,10 @@ const DeleteBreakerFamilyDialog = ({
         <Button
           color="error"
           variant="contained"
-          onClick={onConfirm}
+          onClick={() => void onConfirm()}
+          disabled={isDeleting}
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
       </DialogActions>
     </Dialog>

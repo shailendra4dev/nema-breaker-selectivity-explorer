@@ -1,127 +1,88 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  Button,
   MenuItem,
   Stack,
   TextField,
 } from '@mui/material';
-import { Controller, useForm } from 'react-hook-form';
-
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import {
   breakerFamilySchema,
   type BreakerFamilyFormValues,
 } from '../schemas/breakerFamilySchema';
 
-interface BreakerFamilyFormProps {
-  defaultValues?: BreakerFamilyFormValues;
-  submitLabel: string;
-  onSubmit: (values: BreakerFamilyFormValues) => void;
-  onCancel: () => void;
-}
-
-const emptyValues: BreakerFamilyFormValues = {
-  name: '',
-  description: '',
-  status: 'active',
+type BreakerFamilyFormProps = {
+  defaultValues: BreakerFamilyFormValues;
+  disabled?: boolean;
+  onSubmit: (
+    values: BreakerFamilyFormValues,
+  ) => Promise<void>;
 };
 
 const BreakerFamilyForm = ({
-  defaultValues = emptyValues,
-  submitLabel,
+  defaultValues,
+  disabled = false,
   onSubmit,
-  onCancel,
 }: BreakerFamilyFormProps) => {
   const {
-    control,
+    register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors },
   } = useForm<BreakerFamilyFormValues>({
     resolver: zodResolver(breakerFamilySchema),
     defaultValues,
   });
 
+  useEffect(() => {
+    reset(defaultValues);
+  }, [defaultValues, reset]);
+
   return (
     <Stack
+      id="breaker-family-form"
       component="form"
-      spacing={3}
+      spacing={2}
+      sx={{ pt: 1 }}
       onSubmit={handleSubmit(onSubmit)}
-      noValidate
     >
-      <Controller
-        name="name"
-        control={control}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            label="Family name"
-            fullWidth
-            autoFocus
-            error={Boolean(errors.name)}
-            helperText={errors.name?.message}
-          />
-        )}
+      <TextField
+        label="Name"
+        fullWidth
+        disabled={disabled}
+        error={Boolean(errors.name)}
+        helperText={errors.name?.message}
+        {...register('name')}
       />
 
-      <Controller
-        name="description"
-        control={control}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            label="Description"
-            fullWidth
-            multiline
-            minRows={3}
-            error={Boolean(errors.description)}
-            helperText={errors.description?.message}
-          />
-        )}
+      <TextField
+        label="Description"
+        fullWidth
+        multiline
+        minRows={3}
+        disabled={disabled}
+        error={Boolean(errors.description)}
+        helperText={errors.description?.message}
+        {...register('description')}
       />
 
-      <Controller
-        name="status"
-        control={control}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            select
-            label="Status"
-            fullWidth
-            error={Boolean(errors.status)}
-            helperText={errors.status?.message}
-          >
-            <MenuItem value="active">
-              Active
-            </MenuItem>
-
-            <MenuItem value="inactive">
-              Inactive
-            </MenuItem>
-          </TextField>
-        )}
-      />
-
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ justifyContent: 'flex-end' }}
+      <TextField
+        select
+        label="Status"
+        fullWidth
+        disabled={disabled}
+        error={Boolean(errors.status)}
+        helperText={errors.status?.message}
+        {...register('status')}
       >
-        <Button
-          type="button"
-          color="inherit"
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
+        <MenuItem value="active">
+          Active
+        </MenuItem>
 
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={isSubmitting}
-        >
-          {submitLabel}
-        </Button>
-      </Stack>
+        <MenuItem value="inactive">
+          Inactive
+        </MenuItem>
+      </TextField>
     </Stack>
   );
 };

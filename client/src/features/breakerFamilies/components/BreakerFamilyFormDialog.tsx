@@ -1,64 +1,82 @@
 import {
+  Button,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
 } from '@mui/material';
-
-import type { BreakerFamily } from '../types/breakerFamily.types';
-import type { BreakerFamilyFormValues } from '../schemas/breakerFamilySchema';
 import BreakerFamilyForm from './BreakerFamilyForm';
+import type { BreakerFamilyFormValues } from '../schemas/breakerFamilySchema';
+import type { BreakerFamily } from '../types/breakerFamily.types';
 
-interface BreakerFamilyFormDialogProps {
+type BreakerFamilyFormDialogProps = {
   open: boolean;
+  mode: 'create' | 'edit';
   breakerFamily?: BreakerFamily | null;
+  isSubmitting?: boolean;
   onClose: () => void;
-  onSubmit: (values: BreakerFamilyFormValues) => void;
-}
+  onSubmit: (
+    values: BreakerFamilyFormValues,
+  ) => Promise<void>;
+};
 
 const BreakerFamilyFormDialog = ({
   open,
+  mode,
   breakerFamily,
+  isSubmitting = false,
   onClose,
   onSubmit,
 }: BreakerFamilyFormDialogProps) => {
-  const isEditing = Boolean(breakerFamily);
+  const title =
+    mode === 'create'
+      ? 'Add Breaker Family'
+      : 'Edit Breaker Family';
 
-  const defaultValues: BreakerFamilyFormValues = breakerFamily
-    ? {
-        name: breakerFamily.name,
-        description: breakerFamily.description,
-        status: breakerFamily.status,
-      }
-    : {
-        name: '',
-        description: '',
-        status: 'active',
-      };
+  const defaultValues: BreakerFamilyFormValues = {
+    name: breakerFamily?.name ?? '',
+    description: breakerFamily?.description ?? '',
+    status: breakerFamily?.status ?? 'active',
+  };
 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={isSubmitting ? undefined : onClose}
       fullWidth
       maxWidth="sm"
     >
-      <DialogTitle>
-        {isEditing
-          ? 'Edit breaker family'
-          : 'Add breaker family'}
-      </DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
 
-      <DialogContent sx={{ pt: 2 }}>
+      <DialogContent>
         <BreakerFamilyForm
-          key={breakerFamily?.id ?? 'new'}
           defaultValues={defaultValues}
-          submitLabel={
-            isEditing ? 'Save changes' : 'Add family'
-          }
           onSubmit={onSubmit}
-          onCancel={onClose}
+          disabled={isSubmitting}
         />
       </DialogContent>
+
+      <DialogActions>
+        <Button
+          onClick={onClose}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          type="submit"
+          form="breaker-family-form"
+          variant="contained"
+          disabled={isSubmitting}
+        >
+          {isSubmitting
+            ? 'Saving...'
+            : mode === 'create'
+              ? 'Create'
+              : 'Save'}
+        </Button>
+      </DialogActions>
     </Dialog>
   );
 };
