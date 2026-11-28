@@ -1,32 +1,88 @@
+import { useState } from 'react';
+
 import {
   Alert,
   Box,
   CircularProgress,
-  Paper,
   Stack,
   Typography,
 } from '@mui/material';
 
+import { useAppDispatch } from '../../app/hooks';
+
 import { useBreakers } from '../../features/breakers/hooks/useBreakers';
+
 import { ExplorerForm } from '../../features/explorer/components/ExplorerForm';
 import { ExplorerResult } from '../../features/explorer/components/ExplorerResult';
-import { useSelectivityLookup } from '../../features/explorer/hooks/useSelectivityLookup';
-import type { ExplorerFormData } from '../../features/explorer/schemas/explorerSchema';
+import { RecentSearches } from '../../features/explorer/components/RecentSearches';
 
-export const SelectivityExplorerPage = () => {
+import { useSelectivityLookup } from '../../features/explorer/hooks/useSelectivityLookup';
+
+import {
+  addRecentSearch,
+} from '../../features/explorer/store/explorerSlice';
+
+import type {
+  ExplorerFormData,
+} from '../../features/explorer/schemas/explorerSchema';
+
+import type {
+  ExplorerLookupResult,
+} from '../../features/explorer/types/explorer.types';
+
+export const ExplorerPage = () => {
+  const dispatch = useAppDispatch();
+
+  const [result, setResult] =
+    useState<ExplorerLookupResult | null>(null);
+
   const {
     data: breakers = [],
     isLoading: isBreakersLoading,
     isError: isBreakersError,
   } = useBreakers();
 
-  const selectivityLookup =
-    useSelectivityLookup();
+  const {
+    mutate: lookupSelectivity,
+    isPending,
+    isError: isLookupError,
+    error: lookupError,
+  } = useSelectivityLookup();
 
-  const handleSubmit = (
+  const handleLookup = (
     values: ExplorerFormData,
   ) => {
-    selectivityLookup.mutate(values);
+    setResult(null);
+
+    lookupSelectivity(values, {
+      onSuccess: (lookupResult) => {
+        if (lookupResult === null) {
+          return;
+        }
+
+        setResult(lookupResult);
+
+        dispatch(
+          addRecentSearch({
+            id: `${Date.now()}`,
+
+            voltage: values.voltage,
+
+            upstreamBreakerId:
+              values.upstreamBreakerId,
+
+            downstreamBreakerId:
+              values.downstreamBreakerId,
+
+            selectivityKa:
+              lookupResult.selectivityKa,
+
+            searchedAt:
+              new Date().toISOString(),
+          }),
+        );
+      },
+    });
   };
 
   if (isBreakersLoading) {
@@ -35,7 +91,8 @@ export const SelectivityExplorerPage = () => {
         sx={{
           display: 'flex',
           justifyContent: 'center',
-          py: 6,
+          alignItems: 'center',
+          minHeight: 300,
         }}
       >
         <CircularProgress />
@@ -46,14 +103,14 @@ export const SelectivityExplorerPage = () => {
   if (isBreakersError) {
     return (
       <Alert severity="error">
-        Failed to load breakers. Verify that the server
-        is running and the Breaker API is available.
+        Unable to load breakers.
       </Alert>
     );
   }
 
   return (
     <Stack spacing={4}>
+      {/* Page heading */}
       <Box>
         <Typography
           variant="h4"
@@ -63,53 +120,63 @@ export const SelectivityExplorerPage = () => {
           Selectivity Explorer
         </Typography>
 
-        <Typography color="text.secondary">
-          Select the system voltage, upstream breaker,
-          and downstream breaker to check the available
-          selectivity information.
+        <Typography
+          variant="body1"
+          color="text.secondary"
+        >
+          Select the system voltage, upstream
+          breaker, and downstream breaker to
+          check their selectivity limit.
         </Typography>
       </Box>
 
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 3,
-          maxWidth: 700,
-        }}
-      >
-        <ExplorerForm
-          breakers={breakers}
-          onSubmit={handleSubmit}
-          isLoading={selectivityLookup.isPending}
-        />
-      </Paper>
+      {/* Explorer form */}
+      <ExplorerForm
+        breakers={breakers}
+        onSubmit={handleLookup}
+        isPending={isPending}
+      />
 
-      {selectivityLookup.isPending && (
+      {/* Lookup in progress */}
+      {isPending && (
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
           }}
         >
-          <CircularProgress size={32} />
+          <CircularProgress size={24} />
+
+          <Typography color="text.secondary">
+            Checking selectivity...
+          </Typography>
         </Box>
       )}
 
-      {selectivityLookup.isError && (
+      {/* Lookup error */}
+      {isLookupError && (
         <Alert severity="error">
-          Unable to check selectivity. Verify that the
-          server is running and try again.
+          {lookupError instanceof Error
+            ? lookupError.message
+            : 'Unable to check selectivity.'}
         </Alert>
       )}
 
-      {selectivityLookup.isSuccess && (
+      {/* Lookup result */}
+      {result && (
         <ExplorerResult
-          result={selectivityLookup.data}
           breakers={breakers}
+          result={
+            result as Parameters<typeof ExplorerResult>[0]['result']
+          }
         />
       )}
+
+      {/* Redux recent search history */}
+      <RecentSearches />
     </Stack>
   );
 };
 
-export default SelectivityExplorerPage;
+export default ExplorerPage;

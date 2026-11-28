@@ -1,13 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 
-import preferencesReducer from '../features/preferences/preferencesSlice';
+import { explorerReducer } from '../features/explorer/store/explorerSlice';
 
 export const store = configureStore({
   reducer: {
-    preferences: preferencesReducer,
+    explorer: explorerReducer,
   },
 });
 
-export type AppStore = typeof store;
 export type RootState = ReturnType<typeof store.getState>;
+
 export type AppDispatch = typeof store.dispatch;

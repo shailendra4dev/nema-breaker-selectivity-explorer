@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Button,
@@ -7,75 +9,192 @@ import {
   MenuItem,
   Select,
   Stack,
-  TextField,
+  type SelectChangeEvent,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 
-import type { Breaker } from '../../breakers/types/breaker.types';
 import {
-  explorerSchema,
-  type ExplorerFormData,
+  useAppDispatch,
+  useAppSelector,
+} from '../../../app/hooks';
+import type { Breaker } from '../../breakers/types/breaker.types';
+import { explorerSchema } from '../schemas/explorerSchema';
+import {
+  setExplorerCriteria,
+} from '../store/explorerSlice';
+import type {
+  ExplorerFormData,
 } from '../schemas/explorerSchema';
 
 interface ExplorerFormProps {
   breakers: Breaker[];
-  onSubmit: (data: ExplorerFormData) => void;
-  isLoading?: boolean;
+  onSubmit: (values: ExplorerFormData) => void;
+  isPending?: boolean;
 }
+
+const VOLTAGE_OPTIONS = [208, 240, 480, 600];
 
 export const ExplorerForm = ({
   breakers,
   onSubmit,
-  isLoading = false,
+  isPending = false,
 }: ExplorerFormProps) => {
+  const dispatch = useAppDispatch();
+
+  const savedCriteria = useAppSelector(
+    (state) => state.explorer.criteria,
+  );
+
   const {
     control,
-    register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ExplorerFormData>({
     resolver: zodResolver(explorerSchema),
+
     defaultValues: {
-      voltage: 480,
-      upstreamBreakerId: '',
-      downstreamBreakerId: '',
+      voltage: savedCriteria.voltage ?? undefined,
+      upstreamBreakerId:
+        savedCriteria.upstreamBreakerId,
+      downstreamBreakerId:
+        savedCriteria.downstreamBreakerId,
     },
   });
 
-  const selectedUpstreamBreakerId = watch(
-    'upstreamBreakerId',
+  const voltage = watch('voltage');
+  const upstreamBreakerId =
+    watch('upstreamBreakerId');
+  const downstreamBreakerId =
+    watch('downstreamBreakerId');
+
+  useEffect(() => {
+    dispatch(
+      setExplorerCriteria({
+        voltage:
+          typeof voltage === 'number'
+            ? voltage
+            : null,
+
+        upstreamBreakerId:
+          upstreamBreakerId ?? '',
+
+        downstreamBreakerId:
+          downstreamBreakerId ?? '',
+      }),
+    );
+  }, [
+    dispatch,
+    voltage,
+    upstreamBreakerId,
+    downstreamBreakerId,
+  ]);
+
+  const activeBreakers = breakers.filter(
+    (breaker) => breaker.status === 'active',
   );
+
+  const upstreamBreakers = activeBreakers.filter(
+    (breaker) =>
+      breaker.id !== downstreamBreakerId,
+  );
+
+  const downstreamBreakers = activeBreakers.filter(
+    (breaker) =>
+      breaker.id !== upstreamBreakerId,
+  );
+
+  const handleUpstreamChange = (
+    event: SelectChangeEvent<string>,
+    onChange: (value: string) => void,
+  ) => {
+    const value = event.target.value;
+
+    onChange(value);
+
+    if (value === downstreamBreakerId) {
+      setValue('downstreamBreakerId', '');
+    }
+  };
+
+  const handleDownstreamChange = (
+    event: SelectChangeEvent<string>,
+    onChange: (value: string) => void,
+  ) => {
+    const value = event.target.value;
+
+    onChange(value);
+
+    if (value === upstreamBreakerId) {
+      setValue('upstreamBreakerId', '');
+    }
+  };
 
   return (
     <Stack
       component="form"
       spacing={3}
       onSubmit={handleSubmit(onSubmit)}
+      noValidate
     >
-      <TextField
-        label="Voltage"
-        type="number"
-        {...register('voltage', {
-          valueAsNumber: true,
-        })}
-        error={Boolean(errors.voltage)}
-        helperText={errors.voltage?.message}
-        slotProps={{
-          htmlInput: {
-          min: 1,
-          },
-        }}
-        fullWidth
+      {/* Voltage */}
+      <Controller
+        name="voltage"
+        control={control}
+        render={({ field }) => (
+          <FormControl
+            fullWidth
+            error={Boolean(errors.voltage)}
+          >
+            <InputLabel id="voltage-label">
+              System Voltage
+            </InputLabel>
+
+            <Select
+              {...field}
+              value={field.value ?? ''}
+              labelId="voltage-label"
+              label="System Voltage"
+              onChange={(event) => {
+                const value = String(event.target.value);
+
+                field.onChange(
+                  value === ''
+                    ? undefined
+                    : Number(value),
+                );
+              }}
+            >
+              {VOLTAGE_OPTIONS.map(
+                (voltageOption) => (
+                  <MenuItem
+                    key={voltageOption}
+                    value={voltageOption}
+                  >
+                    {voltageOption} V
+                  </MenuItem>
+                ),
+              )}
+            </Select>
+
+            <FormHelperText>
+              {errors.voltage?.message}
+            </FormHelperText>
+          </FormControl>
+        )}
       />
 
+      {/* Upstream breaker */}
       <Controller
         name="upstreamBreakerId"
         control={control}
         render={({ field }) => (
           <FormControl
             fullWidth
-            error={Boolean(errors.upstreamBreakerId)}
+            error={Boolean(
+              errors.upstreamBreakerId,
+            )}
           >
             <InputLabel id="upstream-breaker-label">
               Upstream Breaker
@@ -85,31 +204,46 @@ export const ExplorerForm = ({
               {...field}
               labelId="upstream-breaker-label"
               label="Upstream Breaker"
+              value={field.value ?? ''}
+              onChange={(event) =>
+                handleUpstreamChange(
+                  event,
+                  field.onChange,
+                )
+              }
             >
-              {breakers.map((breaker) => (
-                <MenuItem
-                  key={breaker.id}
-                  value={breaker.id}
-                >
-                  {breaker.catalogNumber}
-                </MenuItem>
-              ))}
+              {upstreamBreakers.map(
+                (breaker) => (
+                  <MenuItem
+                    key={breaker.id}
+                    value={breaker.id}
+                  >
+                    {breaker.catalogNumber}
+                  </MenuItem>
+                ),
+              )}
             </Select>
 
             <FormHelperText>
-              {errors.upstreamBreakerId?.message}
+              {
+                errors.upstreamBreakerId
+                  ?.message
+              }
             </FormHelperText>
           </FormControl>
         )}
       />
 
+      {/* Downstream breaker */}
       <Controller
         name="downstreamBreakerId"
         control={control}
         render={({ field }) => (
           <FormControl
             fullWidth
-            error={Boolean(errors.downstreamBreakerId)}
+            error={Boolean(
+              errors.downstreamBreakerId,
+            )}
           >
             <InputLabel id="downstream-breaker-label">
               Downstream Breaker
@@ -119,23 +253,31 @@ export const ExplorerForm = ({
               {...field}
               labelId="downstream-breaker-label"
               label="Downstream Breaker"
+              value={field.value ?? ''}
+              onChange={(event) =>
+                handleDownstreamChange(
+                  event,
+                  field.onChange,
+                )
+              }
             >
-              {breakers.map((breaker) => (
-                <MenuItem
-                  key={breaker.id}
-                  value={breaker.id}
-                  disabled={
-                    breaker.id ===
-                    selectedUpstreamBreakerId
-                  }
-                >
-                  {breaker.catalogNumber}
-                </MenuItem>
-              ))}
+              {downstreamBreakers.map(
+                (breaker) => (
+                  <MenuItem
+                    key={breaker.id}
+                    value={breaker.id}
+                  >
+                    {breaker.catalogNumber}
+                  </MenuItem>
+                ),
+              )}
             </Select>
 
             <FormHelperText>
-              {errors.downstreamBreakerId?.message}
+              {
+                errors.downstreamBreakerId
+                  ?.message
+              }
             </FormHelperText>
           </FormControl>
         )}
@@ -144,9 +286,10 @@ export const ExplorerForm = ({
       <Button
         type="submit"
         variant="contained"
-        disabled={isLoading || breakers.length === 0}
+        size="large"
+        disabled={isPending}
       >
-        {isLoading
+        {isPending
           ? 'Checking...'
           : 'Check Selectivity'}
       </Button>
