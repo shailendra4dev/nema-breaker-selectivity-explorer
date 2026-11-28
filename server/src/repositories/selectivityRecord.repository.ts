@@ -81,3 +81,17 @@ export const deleteSelectivityRecord = (
 
   return true;
 };
+
+export const findActiveSelectivityRecordByCombination = (
+  voltage: number,
+  upstreamBreakerId: string,
+  downstreamBreakerId: string,
+) => {
+  return selectivityRecords.find(
+    (record) =>
+      record.voltage === voltage &&
+      record.upstreamBreakerId === upstreamBreakerId &&
+      record.downstreamBreakerId === downstreamBreakerId &&
+      record.status === 'active',
+  );
+};
